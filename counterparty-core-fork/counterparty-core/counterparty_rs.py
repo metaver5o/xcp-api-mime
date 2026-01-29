@@ -138,9 +138,97 @@ class Indexer:
         return result
 
 
+class Deserializer:
+    """Mock Deserializer class that uses Bitcoin RPC to decode transactions"""
+
+    def __init__(self, config):
+        self.config = config
+        self.rpc_address = config.get("rpc_address", "http://bitcoind:18443")
+        self.rpc_user = config.get("rpc_user", "dev")
+        self.rpc_password = config.get("rpc_password", "devpass")
+        logger.info(f"MockDeserializer initialized with rpc_address={self.rpc_address}")
+
+    def _rpc_call(self, method, params=None):
+        """Make an RPC call to Bitcoin Core"""
+        payload = {
+            "jsonrpc": "2.0",
+            "id": "mock",
+            "method": method,
+            "params": params or []
+        }
+        try:
+            response = requests.post(
+                self.rpc_address,
+                json=payload,
+                auth=(self.rpc_user, self.rpc_password),
+                timeout=30
+            )
+            result = response.json()
+            if "error" in result and result["error"]:
+                logger.error(f"RPC error: {result['error']}")
+                return None
+            return result.get("result")
+        except Exception as e:
+            logger.error(f"RPC call failed: {e}")
+            return None
+
+    def _convert_tx(self, tx, block_index, parse_vouts=False):
+        """Convert Bitcoin Core tx format to Counterparty expected format"""
+        vins = []
+        for vin in tx.get("vin", []):
+            vin_data = {
+                "hash": vin.get("txid", "0" * 64),
+                "n": vin.get("vout", 0),
+                "script_sig": vin.get("scriptSig", {}).get("hex", ""),
+                "sequence": vin.get("sequence", 0xffffffff),
+            }
+            if "coinbase" in vin:
+                vin_data["coinbase"] = vin["coinbase"]
+            if "txinwitness" in vin:
+                vin_data["witness"] = vin["txinwitness"]
+            vins.append(vin_data)
+
+        vouts = []
+        for vout in tx.get("vout", []):
+            vout_data = {
+                "n": vout.get("n"),
+                "value": vout.get("value", 0),
+                "script_pub_key": vout.get("scriptPubKey", {}).get("hex", ""),
+            }
+            vouts.append(vout_data)
+
+        is_coinbase = len(tx.get("vin", [])) > 0 and "coinbase" in tx.get("vin", [{}])[0]
+
+        return {
+            "tx_id": tx.get("txid"),
+            "tx_hash": tx.get("hash", tx.get("txid")),
+            "vin": vins,
+            "vout": vouts,
+            "segwit": tx.get("hash") != tx.get("txid"),
+            "coinbase": is_coinbase,
+            "block_index": block_index,
+        }
+
+    def parse_transaction(self, tx_hex, block_index, parse_vouts=False):
+        """Decode a raw transaction hex"""
+        tx = self._rpc_call("decoderawtransaction", [tx_hex])
+        if tx is None:
+            return None
+        return self._convert_tx(tx, block_index, parse_vouts)
+
+    def parse_block(self, block_hex, block_index, parse_vouts=False):
+        """Decode a raw block hex"""
+        # This is rarely used - blocks are usually fetched via get_block_non_blocking
+        block = self._rpc_call("decodeblock", [block_hex])
+        if block is None:
+            return None
+        return block
+
+
 class MockIndexerModule:
-    """Module-level mock that exposes the Indexer class"""
+    """Module-level mock that exposes the Indexer and Deserializer classes"""
     Indexer = Indexer
+    Deserializer = Deserializer
 
 class MockUtils:
     """Mock utils class to replace counterparty_rs.utils"""
