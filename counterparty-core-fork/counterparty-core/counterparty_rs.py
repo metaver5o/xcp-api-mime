@@ -86,20 +86,51 @@ class Indexer:
         # Convert to expected format
         transactions = []
         for tx in block.get("tx", []):
+            # Convert vin to expected format with hash and n
+            vins = []
+            for vin in tx.get("vin", []):
+                vin_data = {
+                    "hash": vin.get("txid", "0" * 64),  # Previous tx hash
+                    "n": vin.get("vout", 0),  # Previous tx output index
+                    "script_sig": vin.get("scriptSig", {}).get("hex", ""),
+                    "sequence": vin.get("sequence", 0xffffffff),
+                    "coinbase": vin.get("coinbase"),
+                }
+                # Add witness data if present
+                if "txinwitness" in vin:
+                    vin_data["witness"] = vin["txinwitness"]
+                vins.append(vin_data)
+
+            # Convert vout to expected format with script_pub_key
+            vouts = []
+            for vout in tx.get("vout", []):
+                vout_data = {
+                    "n": vout.get("n"),
+                    "value": vout.get("value", 0),
+                    "script_pub_key": vout.get("scriptPubKey", {}).get("hex", ""),
+                }
+                vouts.append(vout_data)
+
+            # Check if this is a coinbase transaction
+            is_coinbase = len(tx.get("vin", [])) > 0 and "coinbase" in tx.get("vin", [{}])[0]
+
             tx_data = {
                 "tx_id": tx.get("txid"),
                 "tx_hash": tx.get("hash", tx.get("txid")),
-                "vin": tx.get("vin", []),
-                "vout": tx.get("vout", []),
+                "vin": vins,
+                "vout": vouts,
                 "segwit": tx.get("hash") != tx.get("txid"),
+                "coinbase": is_coinbase,
             }
             transactions.append(tx_data)
 
         result = {
             "height": self.current_height,
+            "block_index": self.current_height,
             "block_hash": block_hash,
             "block_time": block.get("time"),
-            "previous_block_hash": block.get("previousblockhash"),
+            "hash_prev": block.get("previousblockhash", "0" * 64),
+            "bits": block.get("bits", "0"),
             "transactions": transactions,
         }
 
