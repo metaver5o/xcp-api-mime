@@ -1,0 +1,163 @@
+# Mock Rust dependency for Counterparty Core
+import logging
+import time
+import requests
+
+logger = logging.getLogger(__name__)
+
+VERSION = "11.0.4"
+
+
+class Indexer:
+    """Mock Indexer class that fetches blocks from Bitcoin RPC"""
+
+    def __init__(self, config):
+        self.config = config
+        self.rpc_address = config.get("rpc_address", "http://bitcoind:18443")
+        self.rpc_user = config.get("rpc_user", "dev")
+        self.rpc_password = config.get("rpc_password", "devpass")
+        self.current_height = config.get("start_height", 0)
+        self.running = False
+        logger.info(f"MockIndexer initialized with config: rpc_address={self.rpc_address}")
+
+    def get_version(self):
+        """Return the version string"""
+        return VERSION
+
+    def start(self):
+        """Start the indexer"""
+        self.running = True
+        logger.info("MockIndexer started")
+
+    def stop(self):
+        """Stop the indexer"""
+        self.running = False
+        logger.info("MockIndexer stopped")
+
+    def _rpc_call(self, method, params=None):
+        """Make an RPC call to Bitcoin Core"""
+        payload = {
+            "jsonrpc": "2.0",
+            "id": "mock",
+            "method": method,
+            "params": params or []
+        }
+        try:
+            response = requests.post(
+                self.rpc_address,
+                json=payload,
+                auth=(self.rpc_user, self.rpc_password),
+                timeout=30
+            )
+            result = response.json()
+            if "error" in result and result["error"]:
+                logger.error(f"RPC error: {result['error']}")
+                return None
+            return result.get("result")
+        except Exception as e:
+            logger.error(f"RPC call failed: {e}")
+            return None
+
+    def get_block_non_blocking(self):
+        """Get the next block non-blocking, returns None if not available"""
+        if not self.running:
+            return None
+
+        # Get current blockchain height
+        info = self._rpc_call("getblockchaininfo")
+        if info is None:
+            return None
+
+        chain_height = info.get("blocks", 0)
+
+        if self.current_height > chain_height:
+            return None
+
+        # Get block hash at current height
+        block_hash = self._rpc_call("getblockhash", [self.current_height])
+        if block_hash is None:
+            return None
+
+        # Get full block with transactions
+        block = self._rpc_call("getblock", [block_hash, 2])  # verbosity 2 = full tx data
+        if block is None:
+            return None
+
+        # Convert to expected format
+        transactions = []
+        for tx in block.get("tx", []):
+            tx_data = {
+                "tx_id": tx.get("txid"),
+                "tx_hash": tx.get("hash", tx.get("txid")),
+                "vin": tx.get("vin", []),
+                "vout": tx.get("vout", []),
+                "segwit": tx.get("hash") != tx.get("txid"),
+            }
+            transactions.append(tx_data)
+
+        result = {
+            "height": self.current_height,
+            "block_hash": block_hash,
+            "block_time": block.get("time"),
+            "previous_block_hash": block.get("previousblockhash"),
+            "transactions": transactions,
+        }
+
+        self.current_height += 1
+        return result
+
+
+class MockIndexerModule:
+    """Module-level mock that exposes the Indexer class"""
+    Indexer = Indexer
+
+class MockUtils:
+    """Mock utils class to replace counterparty_rs.utils"""
+    
+    def __init__(self):
+        pass
+    
+    def decode_script(self, script):
+        """Mock decode_script method"""
+        logger.debug(f"MockUtils.decode_script called with: {script}")
+        return {"type": "mock", "addresses": ["mock_address"]}
+    
+    def encode_script(self, script_data):
+        """Mock encode_script method"""
+        logger.debug(f"MockUtils.encode_script called with: {script_data}")
+        return "mock_encoded_script"
+    
+    def __getattr__(self, name):
+        """Return a mock method for any missing attributes"""
+        def mock_method(*args, **kwargs):
+            logger.debug(f"MockUtils.{name} called with args: {args}, kwargs: {kwargs}")
+            return None
+        return mock_method
+
+class MockB58:
+    """Mock b58 class to replace counterparty_rs.b58"""
+    
+    def __init__(self):
+        pass
+    
+    def decode(self, data):
+        """Mock decode method"""
+        logger.debug(f"MockB58.decode called with: {data}")
+        return b"mock_decoded"
+    
+    def encode(self, data):
+        """Mock encode method"""
+        logger.debug(f"MockB58.encode called with: {data}")
+        return "mock_encoded"
+    
+    def __getattr__(self, name):
+        """Return a mock method for any missing attributes"""
+        def mock_method(*args, **kwargs):
+            logger.debug(f"MockB58.{name} called with args: {args}, kwargs: {kwargs}")
+            return None
+        return mock_method
+
+# Create module-level instances
+indexer = MockIndexerModule()
+utils = MockUtils()
+b58 = MockB58()

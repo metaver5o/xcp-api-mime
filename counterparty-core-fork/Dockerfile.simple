@@ -1,0 +1,24 @@
+FROM python:3.11
+
+# Install system dependencies for Counterparty
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    libleveldb-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy your modified source code
+COPY ./counterparty-core .
+
+# Install your fork in editable mode (skipping Rust components for now)
+RUN pip install --upgrade pip
+RUN pip install -e . --no-deps
+RUN pip install -r requirements.txt
+
+# Expose API port
+EXPOSE 4000
+
+CMD ["counterparty-server", "start"]
