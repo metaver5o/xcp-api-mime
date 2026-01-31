@@ -5,39 +5,26 @@ networks:
     driver: bridge
 
 services:
-  bitcoind:
-    image: bitcoin/bitcoin:28.0
-    container_name: bitcoind
-    restart: unless-stopped
-    command: bitcoind -regtest -conf=/bitcoin/.bitcoin/bitcoin.conf
-    ports:
-      - "18443:18443"  # regtest RPC port
-      - "28332-28333:28332-28333"  # ZMQ ports
-    volumes:
-      - ./data/bitcoin:/bitcoin/.bitcoin
-    networks:
-      - counterparty-net
-
-  addrindexrs:
-    image: counterparty/addrindexrs:latest
-    container_name: addrindexrs
-    restart: unless-stopped
-    networks:
-      - counterparty-net
-    depends_on:
-      - bitcoind
-    command: ["--daemon-rpc-host", "bitcoind", "--daemon-rpc-port", "8332", "--cookie", "dev:devpass", "--jsonrpc-import"]
-    volumes:
-      - ./data/addrindexrs:/data
+  # Minimal Bitcoin node for transaction decoding only (no sync needed)
+  # bitcoind:
+  #   image: bitcoin/bitcoin:28.0
+  #   container_name: bitcoind
+  #   restart: unless-stopped
+  #   command: bitcoind -conf=/bitcoin/.bitcoin/bitcoin.conf -connect=0
+  #   ports:
+  #     - "8332:8332"
+  #   volumes:
+  #     - ./data/bitcoin:/bitcoin/.bitcoin
+  #   networks:
+  #     - counterparty-net
 
   counterparty:
-    build: 
-      context: ./counterparty-core-fork
-      dockerfile: Dockerfile.local
+    build:
+      context: ./counterparty-core-original
+      dockerfile: Dockerfile
     container_name: counterparty-dev
-    depends_on:
-      - bitcoind
-      - addrindexrs
+    # depends_on:
+    #   - bitcoind
     networks:
       - counterparty-net
     ports:
@@ -45,15 +32,14 @@ services:
     volumes:
       - ./data/counterparty:/root/.local/share/counterparty
       - ./data/counterparty:/root/.cache/counterparty
-      - ./counterparty-core-fork/counterparty-core/server.conf:/root/.config/counterparty/server.conf
+      - ./config/server.conf:/root/.config/counterparty/server.conf
     environment:
-      - COUNTERPARTY_RPC_HOST=bitcoind
-      - COUNTERPARTY_RPC_PORT=8332
-      - COUNTERPARTY_RPC_USER=dev
-      - COUNTERPARTY_RPC_PASSWORD=devpass
       - COUNTERPARTY_API_PORT=4000
       - COUNTERPARTY_API_HOST=0.0.0.0
-      - BITCOIN_RPC_CONNECT=bitcoind
-      - BITCOIN_RPC_USER=dev
-      - BITCOIN_RPC_PASSWORD=devpass
-      - INDEX_URL=http://addrindexrs:8432
+      # Configure external Bitcoin node connection
+      # Use host.docker.internal to connect to host machine, or specific IP
+      - BACKEND_CONNECT=host.docker.internal 
+      - BACKEND_PORT=8332
+      - BACKEND_USER=rpc
+      - BACKEND_PASSWORD=rpc
+    command: start --api-only
