@@ -68,9 +68,9 @@ WORKDIR /counterparty-core/counterparty-core
 RUN pip3 install .
 
 # Get the last commit hash and store it in a environment variable
-COPY .git /counterparty-core/.git
-RUN CURRENT_COMMIT=$(python3 -c "from counterpartycore.lib.utils import helpers; print(helpers.get_current_commit_hash(not_from_env=True))") && \
-    echo "export CURRENT_COMMIT=\"$CURRENT_COMMIT\"" > /commit_env.sh
+# Get the last commit hash and store it in a environment variable
+# COPY .git /counterparty-core/.git
+RUN echo "export CURRENT_COMMIT=\"Unknown\"" > /commit_env.sh
 
 # Runtime stage
 FROM alpine:3.18

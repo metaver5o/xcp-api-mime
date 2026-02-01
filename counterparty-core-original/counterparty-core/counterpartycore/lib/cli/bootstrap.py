@@ -112,7 +112,10 @@ def clean_data_dir(data_dir):
         for ext in ["db", "db-wal", "db-shm"]:
             files_to_delete += glob.glob(os.path.join(data_dir, f"{db_name}{network}.{ext}"))
     for file in files_to_delete:
-        os.remove(file)
+        try:
+            os.remove(file)
+        except FileNotFoundError:
+            pass
 
 
 def download_bootstrap_files(data_dir, files):

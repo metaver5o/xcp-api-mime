@@ -6,3 +6,4 @@ data/
 
 # macOS
 .DS_Store
+tomint/*
