@@ -45,6 +45,9 @@ WORKDIR /counterparty-core/counterparty-rs
 # Fetch dependencies - this layer is cached until Cargo.toml/Cargo.lock change
 RUN cargo fetch
 
+# Copy README.md to root for pyproject.toml
+COPY README.md /counterparty-core/README.md
+
 # Copy entire counterparty-core source (includes data files)
 COPY counterparty-core/ /counterparty-core/counterparty-core/
 
