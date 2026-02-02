@@ -45,11 +45,8 @@ WORKDIR /counterparty-core/counterparty-rs
 # Fetch dependencies - this layer is cached until Cargo.toml/Cargo.lock change
 RUN cargo fetch
 
-# Copy files required for build
-COPY README.md /counterparty-core/README.md
-COPY counterparty-core/counterpartycore/lib/config.py /counterparty-core/counterparty-core/counterpartycore/lib/config.py
-COPY counterparty-core/counterpartycore/lib/messages/data /counterparty-core/counterparty-core/counterpartycore/lib/messages/data
-COPY counterparty-core/counterpartycore/protocol_changes.json /counterparty-core/counterparty-core/counterpartycore/protocol_changes.json
+# Copy entire counterparty-core source (includes data files)
+COPY counterparty-core/ /counterparty-core/counterparty-core/
 
 # Copy Rust source files
 COPY ./counterparty-rs /counterparty-core/counterparty-rs
@@ -60,7 +57,6 @@ RUN maturin build --release -o /wheels && \
     pip3 install /wheels/*.whl
 
 # Build Python components
-COPY ./counterparty-core /counterparty-core/counterparty-core
 WORKDIR /counterparty-core/counterparty-core
 RUN pip3 install .
 
