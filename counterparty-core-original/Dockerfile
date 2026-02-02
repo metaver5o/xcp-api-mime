@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Build stage
-FROM alpine:3.18 as builder
+FROM alpine:3.18 AS builder
 
 # Install build dependencies
 RUN apk add --no-cache python3 py3-pip leveldb \
