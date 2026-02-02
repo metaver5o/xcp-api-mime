@@ -43,23 +43,20 @@ RUN mkdir -p /counterparty-core/counterparty-rs/src && \
 WORKDIR /counterparty-core/counterparty-rs
 
 # Fetch dependencies - this layer is cached until Cargo.toml/Cargo.lock change
-RUN --mount=type=cache,target=/root/.cargo/registry \
-    --mount=type=cache,target=/root/.cargo/git \
-    cargo fetch
+RUN cargo fetch
 
 # Copy files required for build
 COPY README.md /counterparty-core/README.md
 COPY counterparty-core/counterpartycore/lib/config.py /counterparty-core/counterparty-core/counterpartycore/lib/config.py
+COPY counterparty-core/counterpartycore/lib/messages/data /counterparty-core/counterparty-core/counterpartycore/lib/messages/data
+COPY counterparty-core/counterpartycore/protocol_changes.json /counterparty-core/counterparty-core/counterpartycore/protocol_changes.json
 
 # Copy Rust source files
 COPY ./counterparty-rs /counterparty-core/counterparty-rs
 
 # Build with maturin, using persistent cache for target dir
 ENV CARGO_TARGET_DIR=/cargo-target
-RUN --mount=type=cache,target=/root/.cargo/registry \
-    --mount=type=cache,target=/root/.cargo/git \
-    --mount=type=cache,target=/cargo-target \
-    maturin build --release -o /wheels && \
+RUN maturin build --release -o /wheels && \
     pip3 install /wheels/*.whl
 
 # Build Python components
