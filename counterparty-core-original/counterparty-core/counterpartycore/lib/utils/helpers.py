@@ -19,7 +19,9 @@ from counterpartycore.lib import config
 
 D = decimal.Decimal
 
+# Register audio MIME types for ordinal inscriptions
 mimetypes.add_type('audio/opus', '.opus')
+mimetypes.add_type('audio/ogg', '.ogg')  # OGG container (can contain Opus, Vorbis, etc.)
 
 
 def chunkify(l, n):  # noqa: E741

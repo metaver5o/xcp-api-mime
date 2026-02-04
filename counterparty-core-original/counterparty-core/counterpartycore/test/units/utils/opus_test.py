@@ -35,3 +35,41 @@ def test_opus_mime_type_support():
     assert "audio/opus" in mimetypes.types_map.values() or \
            any(type == "audio/opus" for type in mimetypes.types_map.values()) or \
            (mimetypes.guess_extension("audio/opus") == ".opus")
+
+
+def test_ogg_mime_type_support():
+    """Test that audio/ogg is correctly recognized and handled."""
+    # Test classification
+    assert helpers.classify_mime_type("audio/ogg") == "binary"
+    
+    # Test valid ogg content check with hex data
+    valid_hex_content = "4f676753"  # "OggS" magic number in hex
+    problems = helpers.check_content("audio/ogg", valid_hex_content)
+    assert problems == []
+    
+    # Verify registration
+    import mimetypes
+    assert "audio/ogg" in mimetypes.types_map.values() or \
+           any(type == "audio/ogg" for type in mimetypes.types_map.values()) or \
+           (mimetypes.guess_extension("audio/ogg") == ".ogg")
+
+
+def test_ogg_opus_with_codec_parameter():
+    """Test that audio/ogg;codecs=opus (with codec parameter) is correctly handled."""
+    # This is the key test for PR #3266
+    # The check_content function should extract base MIME type before validation
+    
+    # Test classification with codec parameter
+    assert helpers.classify_mime_type("audio/ogg;codecs=opus") == "binary"
+    
+    # Test valid content check with codec parameter
+    valid_hex_content = "4f676753"  # "OggS" magic number in hex
+    problems = helpers.check_content("audio/ogg;codecs=opus", valid_hex_content)
+    assert problems == []
+    
+    # Test with different codec parameters
+    problems = helpers.check_content("audio/ogg; codecs=opus", valid_hex_content)
+    assert problems == []
+    
+    problems = helpers.check_content("audio/ogg;codecs=vorbis", valid_hex_content)
+    assert problems == []
