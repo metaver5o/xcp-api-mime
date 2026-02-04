@@ -82,6 +82,3 @@ chmod +x deploy-ec2.sh
 
 - Based on **[Counterparty Core](https://github.com/CounterpartyXCP/counterparty-core)**.
 - Implements the fix from **[PR #3266](https://github.com/CounterpartyXCP/counterparty-core/pull/3266)** by `antron3000`.
-
----
-*Created for UCASH Ecosystem.*
