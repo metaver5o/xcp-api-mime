@@ -1,8 +1,9 @@
 # Counterparty API v2 with Opus Support & External Bitcoin Node
 
 This solution provides a Dockerized Counterparty API v2 instance configured to:
-1.  **Support Opus Audio**: Mint and index `audio/opus` assets (Ordinals).
-2.  **Connect to External Bitcoin Node**: Communicate with a baremetal Bitcoin node running on the host machine properly.
+1.  **Support OGG/Opus Audio**: Mint and index `audio/opus` and `audio/ogg;codecs=opus` assets (Ordinals).
+2.  **MIME Type Parameter Support**: Correctly handles MIME types with parameters, allowing for flexible ordinals.
+3.  **Connect to External Bitcoin Node**: Communicate with a baremetal Bitcoin node running on the host machine properly.
 
 ## Prerequisites
 
@@ -67,9 +68,18 @@ curl -X POST "http://localhost:4000/v2/addresses/$WALLET_ADDRESS/compose/issuanc
   --data-urlencode "description=$HEX_DATA" \
   --data-urlencode "encoding=taproot" \
   --data-urlencode "inscription=true" \
-  --data-urlencode "mime_type=audio/opus" \
+  --data-urlencode "mime_type=audio/ogg;codecs=opus" \
   --data-urlencode "fee_rate=1"
 ```
+
+#### 3. Advanced MIME Types
+You can now use complex MIME types with parameters, such as:
+- `audio/ogg;codecs=opus`
+- `audio/ogg;codecs=vorbis`
+- `video/webm;codecs=vp9`
+
+The API will strip the parameters (like `;codecs=opus`) before validation, ensuring they are accepted while preserving the full MIME type in the inscription.
+
 
 The API will return an unsigned transaction hex. You will need to sign and broadcast this transaction using your wallet software.
 
