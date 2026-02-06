@@ -96,4 +96,4 @@ See [ansible/README.md](ansible/README.md) for full details.
 
 - **Counterparty Core**: The official upstream project.
 - **Patch Logic**: Based on [PR #3266](https://github.com/CounterpartyXCP/counterparty-core/pull/3266).
-- **Setup**: Created for the **UCASH Ecosystem**.
+- **Setup**: Created for the **SkryBit Ecosystem**.
