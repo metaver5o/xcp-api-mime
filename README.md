@@ -62,7 +62,7 @@ ordiname(){
 ```bash
 WALLET="bc1p..."
 ASSET_NUM=$(ordiname)
-HEX_DATA=$(xxd -p my_song.opus | tr -d '\n')
+HEX_DATA=$(xxd -p tomint/comingsoon.opus | tr -d '\n')
 
 curl -v -X POST "http://localhost:4000/v2/addresses/${WALLET}/compose/issuance" \
      -H "Content-Type: application/x-www-form-urlencoded" \
