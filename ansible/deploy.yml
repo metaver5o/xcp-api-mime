@@ -1,0 +1,59 @@
+---
+- name: Deploy Patched Counterparty Node
+  hosts: all
+  become: true
+  vars:
+    app_dir: "/opt/counterparty-patched"
+    # Official image to patch
+    base_image: "counterparty/counterparty:v11.0.4"
+    # Port to expose
+    api_port: 4000
+    # Bitcoin node details (Update in your inventory or here)
+    bitcoin_rpc_connect: "127.0.0.1"
+    bitcoin_rpc_user: "rpc"
+    bitcoin_rpc_password: "password"
+
+  tasks:
+    - name: Install Docker dependencies
+      apt:
+        name: 
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: true
+
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy patch_mime.py
+      copy:
+        src: ../patch_mime.py
+        dest: "{{ app_dir }}/patch_mime.py"
+        mode: '0644'
+
+    - name: Create wrapper Dockerfile to patch the image
+      copy:
+        dest: "{{ app_dir }}/Dockerfile"
+        content: |
+          FROM {{ base_image }}
+          # Apply the MIME type patch
+          COPY patch_mime.py /tmp/patch_mime.py
+          RUN python3 /tmp/patch_mime.py && rm /tmp/patch_mime.py
+
+
+    - name: Create docker-compose.yml
+      template:
+        src: templates/docker-compose.yml.j2
+        dest: "{{ app_dir }}/docker-compose.yml"
+
+    - name: Start the patched container
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        build: always
+        state: present

@@ -1,45 +1,19 @@
 version: '3.8'
 
-networks:
-  counterparty-net:
-    driver: bridge
-
 services:
-  # Minimal Bitcoin node for transaction decoding only (no sync needed)
-  # bitcoind:
-  #   image: bitcoin/bitcoin:28.0
-  #   container_name: bitcoind
-  #   restart: unless-stopped
-  #   command: bitcoind -conf=/bitcoin/.bitcoin/bitcoin.conf -connect=0
-  #   ports:
-  #     - "8332:8332"
-  #   volumes:
-  #     - ./data/bitcoin:/bitcoin/.bitcoin
-  #   networks:
-  #     - counterparty-net
-
   counterparty:
+    image: criptografia/xcp-api:patch
+    platform: linux/amd64
     build:
-      context: ./counterparty-core-original
+      context: .
       dockerfile: Dockerfile
-    container_name: counterparty-dev
-    # depends_on:
-    #   - bitcoind
-    networks:
-      - counterparty-net
+    container_name: xcp-api
+    restart: unless-stopped
     ports:
       - "4000:4000"
     volumes:
       - ./data/counterparty:/root/.local/share/counterparty
-      - ./data/counterparty:/root/.cache/counterparty
+      - ./data/counterparty-cache:/root/.cache/counterparty
       - ./config/server.conf:/root/.config/counterparty/server.conf
-    environment:
-      - COUNTERPARTY_API_PORT=4000
-      - COUNTERPARTY_API_HOST=0.0.0.0
-      # Configure external Bitcoin node connection
-      # Use host.docker.internal to connect to host machine, or specific IP
-      - BACKEND_CONNECT=host.docker.internal 
-      - BACKEND_PORT=8332
-      - BACKEND_USER=rpc
-      - BACKEND_PASSWORD=rpc
-    command: start --api-only
+    env_file:
+      - .env

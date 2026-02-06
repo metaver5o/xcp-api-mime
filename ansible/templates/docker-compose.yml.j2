@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  counterparty:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: counterparty-patched
+    restart: unless-stopped
+    ports:
+      - "{{ api_port }}:4000"
+    environment:
+      - BACKEND_CONNECT={{ bitcoin_rpc_connect }}
+      - BACKEND_USER={{ bitcoin_rpc_user }}
+      - BACKEND_PASSWORD={{ bitcoin_rpc_password }}
+      - BACKEND_SSL=1
+      - ENABLE_ALL_PROTOCOL_CHANGES=1
+    volumes:
+      - counterparty-data:/root/.bitcoin
+      - counterparty-db:/root/.local/share/counterparty
+
+volumes:
+  counterparty-data:
+  counterparty-db:
