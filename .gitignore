@@ -6,10 +6,8 @@ data/
 
 # macOS
 .DS_Store
-tomint/*
 # Senstive files
 commands.md
 .env
-ansible/inventory.ini
 .env
 .env.template
