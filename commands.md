@@ -166,23 +166,44 @@ curl -v -X POST "http://$REMOTE_NODE:4000/v2/addresses/$WALLET/compose/issuance"
      --data-urlencode "use_all_inputs_set=true"
 ```
 
-### Rare Sat + Media Inscription (OGG/Opus)
-*Inscribe audio onto a rare sat using the `--data-binary` method.*
+### Rare Sat + Media Inscription (Template)
+*Generic template for inscribing any media onto a rare sat.*
 ```bash
 ASSET="MYRAREAUDIO"
-FILE="tomint/track.opus"
-RARE_UTXO="<rare_sat_txid>:<vout>"
-FEE_UTXO="<fee_funding_txid>:<vout>"
+FILE="path/to/file.opus"
+RARE_UTXO="<txid>:<vout>"
+FEE_UTXO="<txid>:<vout>"
 
-# Step 1: Build data file with rare sat UTXO as first input
+# Step 1: Build data file
 rm -f /tmp/mint_rare.dat
-echo -n "asset=${ASSET}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=audio%2Fogg%3Bcodecs%3Dopus&sat_per_vbyte=1&inputs_set=${RARE_UTXO},${FEE_UTXO}&use_all_inputs_set=true&description=" > /tmp/mint_rare.dat
+echo -n "asset=${ASSET}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=audio%2Fogg%3Bcodecs%3Dopus&sat_per_vbyte=1.5&inputs_set=${RARE_UTXO},${FEE_UTXO}&use_all_inputs_set=true&description=" > /tmp/mint_rare.dat
 xxd -p "$FILE" | tr -d '\012' >> /tmp/mint_rare.dat
 
-# Step 2: Send to API
+# Step 2: Send binary data
 curl -v -X POST "http://$REMOTE_NODE:4000/v2/addresses/${WALLET}/compose/issuance" \
      -H "Content-Type: application/x-www-form-urlencoded" \
      --data-binary "@/tmp/mint_rare.dat" > output_txs/${ASSET}.txt
+```
+
+### 💎 Practical Example: Rare Sat + 1. Make a YouTube Video.opus
+*The exact configuration for the MAKEAYOUTUBE inscription using combined UTXOs.*
+```bash
+ASSET="MAKEAYOUTUBE"
+FILE="tomint/1. Make a YouTube Video.opus"
+# Rare UTXO (1000 sats) followed by Fee Funding UTXO
+INPUTS="07f016291c86b3be282e78465125a0ba4f183827571d4224033e6f952301c4dc:1,1dcc60e840de9148b268e71739490b3da4453ea7f37f359fc808b967480d3979:0"
+
+# Step 1: Prepare data binary
+rm -f /tmp/mint_rare_audio.dat
+echo -n "asset=${ASSET}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=audio%2Fogg%3Bcodecs%3Dopus&sat_per_vbyte=2.01&inputs_set=${INPUTS}&use_all_inputs_set=true&description=" > /tmp/mint_rare_audio.dat
+
+# Step 2: Append media hex
+xxd -p "$FILE" | tr -d '\012' >> /tmp/mint_rare_audio.dat
+
+# Step 3: Send to Remote Node
+curl -v -X POST "http://$REMOTE_NODE:4000/v2/addresses/${WALLET}/compose/issuance" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     --data-binary "@/tmp/mint_rare_audio.dat" > output_txs/${ASSET}_RARE.txt
 ```
 
 ### Tips
