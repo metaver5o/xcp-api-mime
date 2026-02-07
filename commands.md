@@ -1,6 +1,6 @@
 # 🚀 Counterparty Minting Master Guide
 
-Comprehensive commands for SKRYBIT/UCASH to mint various asset types. Includes examples for local and remote nodes using environment variables.
+Comprehensive commands for SKRYBIT to mint various asset types. Includes examples for local and remote nodes using environment variables.
 
 ## 🛠 Setup & Requirements
 Load your secure credentials before running any commands:
