@@ -84,18 +84,46 @@ curl -v -X POST "http://$REMOTE_NODE:4000/v2/addresses/$WALLET/compose/issuance"
 ## 3️⃣ Media Inscriptions (Large Files)
 *Requires the `--data-binary` method to handle large payloads (Opus, JPEG, etc).*
 
-### 🎵 Audio (OGG/Opus) - Remote
+> **Note:** Use `sat_per_vbyte` (not `fee_rate`). Named assets (alphabetic) require **0.5 XCP** in the wallet. The server must have `electrs-url` configured in `server.conf` for UTXO lookups during compose.
+
+### 🎵 Single Audio Mint — via `mint.sh` (recommended)
+*Runs entirely on the server. Output saved directly to nginx-served directory.*
+```bash
+# From local machine — streams file to server, curl runs there
+./mint.sh MYAUDIO "tomint/1. Make a YouTube Video.opus"
+
+# With custom fee rate
+./mint.sh MYAUDIO "tomint/1. Make a YouTube Video.opus" 3.0
+
+# Output accessible at: http://$REMOTE_NODE:8080/MYAUDIO.txt
+```
+
+### 🎵 Full Collection Mint — via `mint_collection.sh`
+*Loops all .opus files in `tomint/`, derives asset name from filename, saves all outputs.*
+```bash
+# Run on the server — mint all tracks
+bash ~/mint_collection.sh
+
+# Mint a single asset by name
+bash ~/mint_collection.sh LOVEATTHEEND
+
+# With custom fee rate
+bash ~/mint_collection.sh LOVEATTHEEND 3.0
+
+# Outputs go to /data/xcp-api-mime/output_txs/<ASSET>.txt
+# Served at: http://$REMOTE_NODE:8080/<ASSET>.txt
+```
+
+### 🎵 Audio (OGG/Opus) - Manual Remote
 ```bash
 ASSET="MYAUDIO"
 FILE="tomint/1. Make a YouTube Video.opus"
 
-# Step 1: Prepare data with URL-encoded MIME type (audio/ogg;codecs=opus)
 rm -f /tmp/mint_audio.dat
-echo -n "asset=${ASSET}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=audio%2Fogg%3Bcodecs%3Dopus&fee_rate=0.1&description=" > /tmp/mint_audio.dat
+echo -n "asset=${ASSET}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=audio%2Fogg%3Bcodecs%3Dopus&sat_per_vbyte=2.01&description=" > /tmp/mint_audio.dat
 xxd -p "$FILE" | tr -d '\012' >> /tmp/mint_audio.dat
 
-# Step 2: Send binary data
-curl -v -X POST "http://$REMOTE_NODE:4000/v2/addresses/${WALLET}/compose/issuance" \
+curl -s -X POST "http://$REMOTE_NODE:4000/v2/addresses/${WALLET}/compose/issuance" \
      -H "Content-Type: application/x-www-form-urlencoded" \
      --data-binary "@/tmp/mint_audio.dat" > output_txs/${ASSET}.txt
 ```
@@ -105,13 +133,11 @@ curl -v -X POST "http://$REMOTE_NODE:4000/v2/addresses/${WALLET}/compose/issuanc
 ASSET="MYIMAGE"
 FILE="tomint/artwork.jpg"
 
-# Step 1: Prepare data with standard MIME type
 rm -f /tmp/mint_image.dat
-echo -n "asset=${ASSET}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=image%2Fjpeg&fee_rate=0.1&description=" > /tmp/mint_image.dat
+echo -n "asset=${ASSET}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=image%2Fjpeg&sat_per_vbyte=2.01&description=" > /tmp/mint_image.dat
 xxd -p "$FILE" | tr -d '\012' >> /tmp/mint_image.dat
 
-# Step 2: Send binary data
-curl -v -X POST "http://$REMOTE_NODE:4000/v2/addresses/${WALLET}/compose/issuance" \
+curl -s -X POST "http://$REMOTE_NODE:4000/v2/addresses/${WALLET}/compose/issuance" \
      -H "Content-Type: application/x-www-form-urlencoded" \
      --data-binary "@/tmp/mint_image.dat" > output_txs/${ASSET}.txt
 ```
@@ -228,5 +254,47 @@ Check the balance of your wallet on a public node to see pending/confirmed asset
 ```bash
 curl -u "$API_AUTH" "https://$PODMAN_NODE/v2/addresses/$WALLET/balances"
 ```
+
+---
+
+## 🖥️ Server Setup (`/data/xcp-api-mime/`)
+
+### Key paths
+| Path | Purpose |
+|---|---|
+| `/data/xcp-api-mime/config/server.conf` | Counterparty server config |
+| `/data/xcp-api-mime/output_txs/` | Nginx-served output directory |
+| `/data/xcp-api-mime/data/counterparty/` | DB files (`counterparty.db`, `state.db`) |
+
+### Required `server.conf` entries
+```ini
+[Default]
+api-port = 4000
+api-host = 0.0.0.0
+rpc-host = 0.0.0.0
+max-message-size = 50000000
+electrs-url = https://mempool.space/api   # required for compose UTXO lookups
+```
+
+### Docker containers
+```bash
+# Check status
+docker ps
+
+# Tail logs (filter out heartbeat noise)
+docker logs xcp-api --tail 50 2>&1 | grep -v 'PoolMonitor\|POOL_STATS'
+
+# Verify nginx is serving the right directory
+docker inspect xcp-outputs --format '{{json .HostConfig.Binds}}'
+docker exec xcp-outputs ls /usr/share/nginx/html/
+```
+
+### Node is api-only — XCP balance caveat
+The node runs with `--api-only` and does not process new blocks. If the wallet received XCP after the node's last synced block, the compose will return `insufficient funds` even though funds exist on-chain. Verify on-chain with:
+```bash
+curl -s "https://mempool.space/api/address/$WALLET"
+```
+
+---
 
 *Efficiency in Counterparty Media.*

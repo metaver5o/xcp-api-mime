@@ -1,19 +1,18 @@
 #!/bin/bash
 
 # Configuration
-WALLET="bc1p865lxyp372lg0nhkze7kkd6u38vpaglrv5cdfjs3r83nk7jaqalqxzxhq8"
+WALLET="bc1ptvkj9s2dap4u2fk88xu29y90knv6tgndc26t89jytnufkjuqkd4s5tj2zz"
 API_URL="http://localhost:4000/v2"
-SPK="51203ea9f31031f2be87cef6167d6b375c89d81ea3e36530d4ca1119e33b7a5d077e"
-INPUTS="feecf20b488f4163aff604972594e44991f5c6a5bda9b49b9ad5f798a2330401:1:278199:${SPK},7cbb0d8abf8be155e272fff5cb2ffc2f108a0ca1be8e0214d88651e428fe9ee6:1:17550:${SPK}"
+OUTPUT_DIR="/data/xcp-api-mime/output_txs"
 
-mkdir -p output_txs
+mkdir -p "$OUTPUT_DIR"
 
-echo "Minting collection from tomint_48k/ directory..."
+echo "Minting collection from tomint/ directory..."
 echo "Wallet: $WALLET"
 echo "---------------------------------------------------"
 
-for num in $(ls tomint_48k | grep -o '^[0-9]\+' | sort -nu); do
-    filepath=$(ls tomint_48k/$num.*.opus 2>/dev/null)
+for num in $(ls tomint | grep -o '^[0-9]\+' | sort -nu); do
+    filepath=$(ls tomint/$num.*.opus 2>/dev/null)
 
     if [[ -z "$filepath" ]]; then
         echo "Warning: Could not find file for number $num"
@@ -23,19 +22,30 @@ for num in $(ls tomint_48k | grep -o '^[0-9]\+' | sort -nu); do
     filename=$(basename "$filepath")
 
     # Generate numeric asset name (free, no XCP fee)
-    ASSET_NUM="A96$(date +%s)$(jot -r 1 100000 999999)"
+    # Replaced 'jot' with bash RANDOM for portability
+    ASSET_NUM="A96$(date +%s)$((RANDOM % 900000 + 100000))"
 
     # Readable label for output file
     base_name=$(echo "$filename" | sed -E 's/^[0-9]+\. //' | sed 's/\.opus$//')
     label=$(echo "$base_name" | tr '[:lower:]' '[:upper:]' | tr -dc 'A-Z' | cut -c 1-12)
 
+    # FILTER: If an argument is provided, skip if label doesn't match
+    if [[ -n "$1" && "$1" != "$label" ]]; then
+        continue
+    fi
+
     echo "Processing: $filename"
-    echo "  -> Asset: $ASSET_NUM (label: $label)"
+    echo "  -> Asset: $label (named asset, costs 0.5 XCP)"
     echo "  -> Size: $(ls -lh "$filepath" | awk '{print $5}')"
 
     data_file="temp_mint_${label}.dat"
+    
+    # Fee Rate: Use $2 argument if provided, else default to 2.01
+    SAT_PER_VBYTE=${2:-2.01}
 
-    echo -n "asset=${ASSET_NUM}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=audio%2Fogg%3Bcodecs%3Dopus&fee_rate=0.001&inputs_set=${INPUTS}&description=" > "$data_file"
+    echo "  -> Fee Rate: $SAT_PER_VBYTE sat/vbyte"
+
+    echo -n "asset=${label}&quantity=1&divisible=false&encoding=taproot&inscription=true&mime_type=audio%2Fogg%3Bcodecs%3Dopus&sat_per_vbyte=${SAT_PER_VBYTE}&description=" > "$data_file"
 
     xxd -p "$filepath" | tr -d '\n' >> "$data_file"
 
@@ -47,9 +57,19 @@ for num in $(ls tomint_48k | grep -o '^[0-9]\+' | sort -nu); do
 
     rm "$data_file"
 
-    outfile="output_txs/${label}.txt"
+    outfile="${OUTPUT_DIR}/${label}.txt"
     echo "$response" > "$outfile"
-    echo "  -> Saved response to $outfile"
+    
+    # Check for "insufficient funds" which implies a successful payload parse but lack of funds
+    if echo "$response" | grep -q "insufficient funds"; then
+         echo "  [OK] Server accepted payload! (Error: Insufficient Funds, expected on unsynced node)"
+    elif echo "$response" | grep -q "Internal server error"; then
+         echo "  [FAIL] Internal Server Error (possibly 413 or logic crash)"
+    elif echo "$response" | grep -q "Bad Request"; then
+         echo "  [FAIL] Bad Request (check syntax)"
+    else
+         echo "  -> Saved response to $outfile"
+    fi
     echo "---------------------------------------------------"
 
     sleep 1
