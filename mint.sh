@@ -6,8 +6,8 @@
 ASSET="$1"
 FILE="$2"
 SAT_PER_VBYTE="${3:-2.01}"
-WALLET="bc1ptvkj9s2dap4u2fk88xu29y90knv6tgndc26t89jytnufkjuqkd4s5tj2zz"
-REMOTE="ec2-3-138-179-31.us-east-2.compute.amazonaws.com"
+WALLET="bc1pnum2kywslj3d2gcnmsuhqvm0qecqu7erl7tp6h5pj2fwcflgsnnq7p3tcs"
+REMOTE="ec2-18-191-178-208.us-east-2.compute.amazonaws.com"
 OUTPUT_DIR="/data/xcp-api-mime/output_txs"
 
 if [[ -z "$ASSET" || -z "$FILE" ]]; then
