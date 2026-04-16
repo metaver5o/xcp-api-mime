@@ -9,3 +9,4 @@ data/
 # Senstive files
 .env
 .env.template
+tomint/

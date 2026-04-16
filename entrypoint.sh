@@ -3,7 +3,7 @@
 . /commit_env.sh
 
 # Build CLI args from environment variables
-ARGS="start --api-only --api-host=0.0.0.0 --api-port=4000 --rpc-host=0.0.0.0"
+ARGS="start --api-host=0.0.0.0 --api-port=4000 --rpc-host=0.0.0.0"
 
 [ -n "$BACKEND_CONNECT" ]        && ARGS="$ARGS --backend-connect=$BACKEND_CONNECT"
 [ -n "$BACKEND_PORT" ]           && ARGS="$ARGS --backend-port=$BACKEND_PORT"
@@ -15,5 +15,10 @@ ARGS="start --api-only --api-host=0.0.0.0 --api-port=4000 --rpc-host=0.0.0.0"
 [ "$ENABLE_ALL_PROTOCOL_CHANGES" = "1" ] && ARGS="$ARGS --enable-all-protocol-changes"
 [ -n "$CATCH_UP" ]               && ARGS="$ARGS --catch-up=$CATCH_UP"
 
-echo "Starting: counterparty-server $ARGS"
-exec /venv/bin/counterparty-server $ARGS
+if [ "$1" = "start" ] || [ $# -eq 0 ]; then
+    echo "Starting: counterparty-server $ARGS"
+    exec /venv/bin/counterparty-server $ARGS
+else
+    echo "Starting custom command: counterparty-server $@"
+    exec /venv/bin/counterparty-server "$@"
+fi
